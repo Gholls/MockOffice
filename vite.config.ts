@@ -49,9 +49,25 @@ function copySpecs(): Plugin {
   }
 }
 
+const ADSENSE_SRC =
+  'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1400861145058456'
+
+/**
+ * 全局干扰项：把真实的第三方广告脚本注入每一个 HTML 入口。
+ * 放在构建配置而非各页面源码里，保证现有 9 个页面与以后新增页面都不会漏。
+ */
+function adsenseDistractor(): Plugin {
+  return {
+    name: 'mockoffice:adsense-distractor',
+    transformIndexHtml() {
+      return [{ tag: 'script', attrs: { async: '', src: ADSENSE_SRC, crossorigin: 'anonymous' }, injectTo: 'head' }]
+    },
+  }
+}
+
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss(), copySpecs()],
+  plugins: [react(), tailwindcss(), copySpecs(), adsenseDistractor()],
   build: {
     outDir: 'dist',
     rollupOptions: {

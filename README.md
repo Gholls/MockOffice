@@ -117,6 +117,7 @@ mockoffice.<w01|w02|w03>.log     [ { at, action, detail }, ... ]
 
 ## 已知边界
 
+- **全局广告干扰项**：每个 HTML 入口都会由 Vite 的 `transformIndexHtml` 注入一段真实的 Google AdSense `<script async>`（见 [vite.config.ts](file:///Volumes/G/work/gholl/MockOffice/vite.config.ts) 的 `adsenseDistractor`），用来考察 Agent 是否会被第三方脚本、额外的网络请求和控制台报错带偏。它不挂 `<ins class="adsbygoogle">` 广告位，因此不会渲染出可见内容、不影响布局与 `localStorage`；在离线或网络受限环境下会在控制台留下一条资源加载失败的 error —— 这是预期噪声，评测脚本不应把「控制台有 error」当作任务失败。新增页面会自动继承该注入，无需手工复制标签；如需彻底移除，删掉 `plugins` 里的 `adsenseDistractor()` 即可。
 - 视口较窄时资产目录等宽表格会横向滚动（数据完整在 DOM 中，可正常读取）。
 - 交付日期窗口在轮次创建时冻结为 `deliveryWindow`，跨天评测不会漂移，但旧轮次的窗口提示会沿用创建当天的日期。
 - 直接以 `file://` 打开 `dist/` 时，部分浏览器会限制 `localStorage` 与 JSON 读取，请通过 HTTP 托管（`npm run preview` 即可）。
