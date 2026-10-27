@@ -73,8 +73,8 @@ export function hrefFromRoot(meta: WorkflowMeta, page: PageMeta): string {
 export const HOME_HREF = '../index.html'
 
 /** 工作流页面 → 同流程其它页面 */
-export function siblingHref(page: PageMeta): string {
-  return `${page.file}.html`
+export function siblingHref(file: string): string {
+  return `${file}.html`
 }
 
 /** 工作流页面 → 其它流程的页面 */

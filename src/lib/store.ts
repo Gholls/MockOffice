@@ -35,6 +35,15 @@ if (typeof window !== 'undefined') {
   // 同一文档内的写入由 writeJson 主动广播；此处兜底处理 dev 热更新后的重订阅。
 }
 
+/** 评测模式：`?eval=1` 时页面才渲染标准答案，避免 Agent 直接读屏泄题。 */
+export function evalMode(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).has('eval')
+  } catch {
+    return false
+  }
+}
+
 export function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
@@ -124,6 +133,18 @@ export function readLog(wf: WorkflowId): LogEntry[] {
   return readJson<LogEntry[]>(logKey(wf), [])
 }
 
+/** 动作是否发生在指定轮次创建之后（重开轮次会作废上一轮进度） */
+export function withinRound(roundCreatedAt: string, actionAt: string): boolean {
+  return Date.parse(actionAt) >= Date.parse(roundCreatedAt)
+}
+
+export function logEntriesInRound<T>(round: Round<unknown> | null, log: LogEntry[], action: string): T[] {
+  if (!round) return []
+  return log
+    .filter((entry) => entry.action === action && withinRound(round.createdAt, entry.at))
+    .map((entry) => entry.detail as unknown as T)
+}
+
 export function appendLog(wf: WorkflowId, action: string, detail: Record<string, unknown>): LogEntry[] {
   const next = [...readLog(wf), { at: new Date().toISOString(), action, detail }]
   writeJson(logKey(wf), next)
@@ -145,11 +166,6 @@ export function clearAll(): void {
     } catch {
       /* ignore */
     }
-  }
-  try {
-    window.localStorage.removeItem(`${NAMESPACE}.scorecard.dismissed`)
-  } catch {
-    /* ignore */
   }
   emit()
 }

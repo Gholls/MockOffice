@@ -50,7 +50,7 @@ export function AppShell({ wf, currentPage, title, run, actions, children }: App
               return (
                 <a
                   key={page.file}
-                  href={siblingHref(page)}
+                  href={siblingHref(page.file)}
                   aria-current={active ? 'page' : undefined}
                   data-testid={`step-${page.file}`}
                   className={

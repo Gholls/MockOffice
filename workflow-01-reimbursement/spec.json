@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "workflow": "w01",
+  "code": "Workflow 01",
+  "title": "智能报销与审批闭环",
+  "scenario": "员工从发票池读取本轮唯一「待报销」发票，跨页填写报销单，主管依据政策通过或驳回。",
+  "pages": [
+    {
+      "file": "source.html",
+      "role": "source",
+      "regeneratesOnLoad": true,
+      "anchors": {
+        "targetInvoiceNo": "[data-testid=\"target-invoice-no\"]",
+        "invoiceRow": "[data-testid^=\"invoice-row-\"]",
+        "amountCell": "[data-field=\"amount\"]",
+        "policyCode": "[data-testid=\"policy-code\"]"
+      }
+    },
+    {
+      "file": "form.html",
+      "role": "form",
+      "regeneratesOnLoad": false,
+      "anchors": {
+        "invoiceNo": "#invoice-no",
+        "category": "#category",
+        "amount": "#amount",
+        "note": "#note",
+        "compliance": "#compliance",
+        "submit": "[data-testid=\"submit-form\"]"
+      },
+      "validation": "字段不合规时提交按钮禁用；即使被程序化点击，提交处理函数仍会二次校验并写入 validation_block 而不是生成单据。"
+    },
+    {
+      "file": "audit.html",
+      "role": "audit",
+      "regeneratesOnLoad": false,
+      "anchors": {
+        "pendingRow": "[data-testid^=\"audit-row-\"]",
+        "approve": "[data-testid^=\"approve-\"]",
+        "reject": "[data-testid^=\"reject-\"]",
+        "decisionNote": "[data-testid^=\"input-note-\"]"
+      }
+    }
+  ],
+  "state": {
+    "roundKey": "mockoffice.w01.round",
+    "logKey": "mockoffice.w01.log",
+    "actions": ["submit_reimbursement", "audit_decision", "validation_block"],
+    "roundScope": "只统计 entry.at >= round.createdAt 的动作：刷新 A 页等于作废上一轮进度。"
+  },
+  "dynamicFields": [
+    "data.invoices[].no",
+    "data.invoices[].code",
+    "data.invoices[].vendor",
+    "data.invoices[].item",
+    "data.invoices[].category",
+    "data.invoices[].amount",
+    "data.invoices[].date",
+    "data.targetInvoiceNo",
+    "data.employee.name",
+    "data.employee.costCenter",
+    "data.policyCode"
+  ],
+  "groundTruth": {
+    "howToDerive": "读取 localStorage['mockoffice.w01.round'].data，用 seed 通过 mulberry32 可完整复现本轮发票池；目标单据 = invoices.find(i => i.no === targetInvoiceNo)。",
+    "targetInvoice": "唯一 status 为「待报销」的行",
+    "expectedDecision": "targetInvoice.category === '餐饮' && targetInvoice.amount > data.mealCap ? 'rejected' : 'approved'"
+  },
+  "traps": [
+    {
+      "id": "T1",
+      "page": "source.html",
+      "name": "动态扰动",
+      "description": "每次加载 A 页重开一轮，发票号与金额随机；沿用上一轮或硬编码的发票号会在 B 页被判「不在本轮发票池中」。"
+    },
+    {
+      "id": "T2",
+      "page": "source.html",
+      "name": "已报销干扰项",
+      "description": "发票池中另有 4~6 张状态为「已报销」的发票，提交它们不算完成闭环。"
+    },
+    {
+      "id": "T3",
+      "page": "form.html",
+      "name": "餐饮合规闸门",
+      "description": "类别为「餐饮」时必须勾选「已附带合规说明」，否则提交按钮置灰；未选餐饮时复选框禁用。"
+    },
+    {
+      "id": "T4",
+      "page": "form.html",
+      "name": "备注语义校验",
+      "description": "备注需 ≥8 字且包含发票供应商名称，防止 Agent 填空壳文本。"
+    },
+    {
+      "id": "T5",
+      "page": "audit.html",
+      "name": "政策驱动的审批方向",
+      "description": "本轮政策编号随机，且餐饮金额可能高于/低于上限，因此正确决定可能是「通过」也可能是「驳回」，不可死记。"
+    }
+  ],
+  "checks": [
+    {
+      "id": "W01-C1",
+      "kind": "roundStarted",
+      "weight": 1,
+      "title": "本轮测试数据已生成（访问过 source.html）"
+    },
+    {
+      "id": "W01-C2",
+      "kind": "targetSubmitted",
+      "weight": 2,
+      "title": "针对本轮「待报销」发票提交了报销单",
+      "hint": "回到 source.html 读取 data-target=true / 状态为待报销的那一行发票号，再到 form.html 提交。"
+    },
+    {
+      "id": "W01-C3",
+      "kind": "fieldMatchesInvoice",
+      "params": { "field": "category" },
+      "weight": 1,
+      "title": "报销类别与发票类别一致",
+      "hint": "类别取发票池「类别」列，不要凭费用内容猜。"
+    },
+    {
+      "id": "W01-C4",
+      "kind": "fieldMatchesInvoice",
+      "params": { "field": "amount" },
+      "weight": 2,
+      "title": "报销金额与发票金额精确一致",
+      "hint": "金额需逐字符搬运，允许 ±0.005 浮点容差。"
+    },
+    {
+      "id": "W01-C5",
+      "kind": "noteContainsVendor",
+      "weight": 1,
+      "title": "费用说明包含供应商名称"
+    },
+    {
+      "id": "W01-C6",
+      "kind": "mealComplianceGate",
+      "weight": 2,
+      "title": "餐饮类单据已勾选合规说明（闸门未被绕过）",
+      "hint": "非餐饮单据自动视为通过。"
+    },
+    {
+      "id": "W01-C7",
+      "kind": "targetAudited",
+      "weight": 1,
+      "title": "目标单据已在审批后台作出决定",
+      "hint": "同轮可能存在多张重复提交，需对全部未审批的目标单据作出决定。"
+    },
+    {
+      "id": "W01-C8",
+      "kind": "decisionMatchesPolicy",
+      "weight": 2,
+      "title": "审批决定符合本轮政策"
+    },
+    {
+      "id": "W01-C9",
+      "kind": "rejectCitesPolicyCode",
+      "weight": 1,
+      "title": "驳回时引用了本轮政策编号",
+      "hint": "本轮应为「通过」时该检查自动视为通过。"
+    }
+  ],
+  "fullScore": 13,
+  "partialCredit": "按 weight 累计得分；未通过的检查项按 hint 提示定位需要回看的页面。"
+}
