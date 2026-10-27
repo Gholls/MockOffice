@@ -115,6 +115,37 @@ mockoffice.<w01|w02|w03>.log     [ { at, action, detail }, ... ]
 
 校验提示刻意**不回显标准答案**（只说「与工作台数值不一致」），Agent 无法靠反复试错读出正确值，必须回 A 页读数。
 
+## 部署到 Cloudflare Pages
+
+**Git 集成（推荐）**
+
+1. Cloudflare Dashboard → `Workers & Pages` → `Create` → `Pages` → `Connect to Git` → 选 `Gholls/MockOffice`。
+2. Build settings：
+
+   | 项 | 值 |
+   | --- | --- |
+   | Build command | `npm run build` |
+   | Build output directory | `dist` |
+   | Node.js version | 由仓库根的 `.node-version`（22.20.0）钉住 |
+
+   Vite 8 要求 Node `^20.19 || >=22.12`，而 Pages 构建环境默认可能仍是 Node 18，**不钉版本会直接构建失败**；`package.json` 的 `engines` 同步声明了该约束。若想在控制台覆盖，可加环境变量 `NODE_VERSION=22.20.0`。
+
+3. 保存并首次部署。此后 `main` 每次 push 自动构建，分支/PR 会拿到独立的预览域名。
+
+**wrangler 手动部署（可选）**
+
+```bash
+npx wrangler pages deploy dist --project-name mockoffice
+```
+
+**为什么不需要额外配置**
+
+- `base: './'` + 每个页面都是磁盘上的真实 `.html`，因此**不需要 SPA 回退（`_redirects`）规则**，也不依赖根路径部署；子路径托管和分支预览域名都能直接访问：
+  `https://<project>.pages.dev/workflow-01-reimbursement/source.html`
+- `spec.json` 会原样出现在 `dist/` 各流程目录下，外部 harness 可直接 `fetch('https://<project>.pages.dev/workflow-01-reimbursement/spec.json')`。
+- 状态存在浏览器侧的 `localStorage`，按域名隔离：正式域名与预览域名互不影响，评测时固定用同一个域名即可。
+- 全局广告干扰项在 Cloudflare 上会真实向 `pagead2.googlesyndication.com` 发起请求；因为没挂广告位，页面上不会出现可见内容。
+
 ## 已知边界
 
 - **全局广告干扰项**：每个 HTML 入口都会由 Vite 的 `transformIndexHtml` 注入一段真实的 Google AdSense `<script async>`（见 [vite.config.ts](file:///Volumes/G/work/gholl/MockOffice/vite.config.ts) 的 `adsenseDistractor`），用来考察 Agent 是否会被第三方脚本、额外的网络请求和控制台报错带偏。它不挂 `<ins class="adsbygoogle">` 广告位，因此不会渲染出可见内容、不影响布局与 `localStorage`；在离线或网络受限环境下会在控制台留下一条资源加载失败的 error —— 这是预期噪声，评测脚本不应把「控制台有 error」当作任务失败。新增页面会自动继承该注入，无需手工复制标签；如需彻底移除，删掉 `plugins` 里的 `adsenseDistractor()` 即可。
