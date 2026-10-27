@@ -16,7 +16,7 @@ export function AppShell({ wf, currentPage, title, run, actions, children }: App
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-5xl px-5 py-4">
+        <div className="mx-auto max-w-6xl px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <a
@@ -66,8 +66,8 @@ export function AppShell({ wf, currentPage, title, run, actions, children }: App
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl space-y-5 px-5 py-6">{children}</main>
-      <footer className="mx-auto max-w-5xl px-5 pb-10 text-xs text-slate-400">
+      <main className="mx-auto max-w-6xl space-y-5 px-5 py-6">{children}</main>
+      <footer className="mx-auto max-w-6xl px-5 pb-10 text-xs text-slate-400">
         零后端 · 全部状态存于 localStorage（命名空间 <code className="font-mono">mockoffice.*</code>）·{' '}
         <a className="text-indigo-500 hover:underline" href={HOME_HREF}>
           返回导航主页 / Scorecard

@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "workflow": "w03",
+  "code": "Workflow 03",
+  "title": "行政资产/设备领用申请",
+  "scenario": "查询资产目录与剩余库存，填写多级联动领用申请，提交后生成订单并锁定库存。",
+  "pages": [
+    {
+      "file": "catalog.html",
+      "role": "catalog",
+      "regeneratesOnLoad": false,
+      "anchors": {
+        "category": "[data-testid^=\"category-\"]",
+        "modelRow": "[data-testid^=\"model-row-\"]",
+        "remaining": "[data-field=\"remaining\"]",
+        "price": "[data-field=\"price\"]",
+        "outOfStock": "[data-testid^=\"out-of-stock-\"]",
+        "search": "[data-testid=\"search\"]",
+        "inStockOnly": "[data-testid=\"in-stock-only\"]"
+      },
+      "note": "本页刷新不会重开一轮，以免丢失已锁定库存；需要新数据点「随机生成本轮测试数据」。"
+    },
+    {
+      "file": "apply.html",
+      "role": "form",
+      "regeneratesOnLoad": false,
+      "anchors": {
+        "category": "#category",
+        "model": "[data-testid=\"input-model\"]",
+        "quantity": "#quantity",
+        "deliveryDate": "#delivery-date",
+        "reason": "#reason",
+        "submit": "[data-testid=\"submit-order\"]"
+      },
+      "cascading": "型号下拉在未选大类时 disabled 且无选项（data-loaded=false），选定大类后动态填充该大类下的型号。",
+      "validation": "提交时按目录实际库存/额度/日期规则校验，未通过则写入 validation_block 且不生成订单。"
+    }
+  ],
+  "state": {
+    "roundKey": "mockoffice.w03.round",
+    "logKey": "mockoffice.w03.log",
+    "actions": ["create_order", "validation_block"],
+    "roundScope": "只统计 entry.at >= round.createdAt 的动作。"
+  },
+  "dynamicFields": [
+    "data.catalog[].id",
+    "data.catalog[].models[].id",
+    "data.catalog[].models[].name",
+    "data.catalog[].models[].price",
+    "data.catalog[].models[].stock",
+    "data.applicant.name",
+    "data.applicant.seat",
+    "data.budgetCap",
+    "data.maxQuantityPerOrder"
+  ],
+  "groundTruth": {
+    "howToDerive": "localStorage['mockoffice.w03.round'].data.catalog 给出每个型号的初始库存与单价；锁定量 = 本轮 create_order 流水中该型号数量之和。",
+    "remaining": "remaining(modelId) = model.stock - sum(order.quantity where order.modelId === modelId)",
+    "deliveryWindow": "[today + data.leadDays, today + data.windowDays]，且 new Date(d).getDay() 不为 0/6"
+  },
+  "traps": [
+    {
+      "id": "T1",
+      "page": "apply.html",
+      "name": "二级联动",
+      "description": "型号下拉初始禁用且为空，必须先选大类才会加载对应型号；直接给隐藏 select 赋值会被判「型号与所选大类不匹配」。"
+    },
+    {
+      "id": "T2",
+      "page": "catalog.html",
+      "name": "缺货干扰项",
+      "description": "每轮至少一个型号初始库存为 0，选择它提交会被拦截且不生成订单。"
+    },
+    {
+      "id": "T3",
+      "page": "apply.html",
+      "name": "日期约束",
+      "description": "期望交付日期不能是周末、不能早于明天、不能晚于 14 天后。"
+    },
+    {
+      "id": "T4",
+      "page": "apply.html",
+      "name": "额度与库存双约束",
+      "description": "申请页不显示单价与库存，Agent 需回目录页读取后自行保证 数量 ≤ 剩余库存、数量 ≤ 单次上限、合计 ≤ 领用额度。"
+    },
+    {
+      "id": "T5",
+      "page": "catalog.html",
+      "name": "库存锁定可观测",
+      "description": "提交成功后目录页「已锁定/剩余」应随之变化，多次申请会累积锁定。"
+    }
+  ],
+  "checks": [
+    { "id": "W03-C1", "kind": "roundStarted", "weight": 1, "title": "本轮资产目录已生成" },
+    {
+      "id": "W03-C2",
+      "kind": "orderCreated",
+      "weight": 2,
+      "title": "已生成领用订单",
+      "hint": "apply.html 提交成功后订单写入 mockoffice.w03.log。"
+    },
+    {
+      "id": "W03-C3",
+      "kind": "modelWasInStock",
+      "weight": 2,
+      "title": "所申请型号在提交时确有库存"
+    },
+    {
+      "id": "W03-C4",
+      "kind": "quantityWithinStock",
+      "weight": 2,
+      "title": "数量未超剩余库存与单次上限"
+    },
+    {
+      "id": "W03-C5",
+      "kind": "withinBudgetCap",
+      "weight": 1,
+      "title": "合计金额未超单次领用额度"
+    },
+    {
+      "id": "W03-C6",
+      "kind": "deliveryDateValid",
+      "weight": 2,
+      "title": "期望交付日期为窗口内的工作日"
+    },
+    { "id": "W03-C7", "kind": "reasonSufficient", "weight": 1, "title": "领用理由说明充分" },
+    {
+      "id": "W03-C8",
+      "kind": "stockLockedConsistently",
+      "weight": 2,
+      "title": "库存锁定与订单流水一致且未出现负库存"
+    }
+  ],
+  "fullScore": 13,
+  "partialCredit": "按 weight 累计得分；C3~C5 针对本轮最后一张订单判定。"
+}
