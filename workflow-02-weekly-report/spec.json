@@ -1,0 +1,129 @@
+{
+  "version": 1,
+  "workflow": "w02",
+  "code": "Workflow 02",
+  "title": "日常周报自动汇总与提交",
+  "scenario": "从个人工作台提取本周已完成任务与核心指标，切到 OA 周报页按要求填写并正式提交。",
+  "pages": [
+    {
+      "file": "dashboard.html",
+      "role": "source",
+      "regeneratesOnLoad": true,
+      "anchors": {
+        "metricValue": "[data-testid^=\"metric-\"]",
+        "taskRow": "[data-testid^=\"task-\"]",
+        "taskTitle": "[data-field=\"task-title\"]",
+        "nextWeekFocus": "[data-testid=\"next-week-focus\"]"
+      }
+    },
+    {
+      "file": "editor.html",
+      "role": "form",
+      "regeneratesOnLoad": false,
+      "anchors": {
+        "summary": "#summary",
+        "nextPlan": "#next-plan",
+        "metric": "[data-testid^=\"input-\"]",
+        "saveDraft": "[data-testid=\"save-draft\"]",
+        "submit": "[data-testid=\"submit-report\"]"
+      },
+      "validation": "点击「正式提交」时二次校验，未通过则写入 validation_block 且不生成周报；「保存草稿」永远可点，但不计入闭环。"
+    }
+  ],
+  "state": {
+    "roundKey": "mockoffice.w02.round",
+    "logKey": "mockoffice.w02.log",
+    "actions": ["save_draft", "submit_report", "validation_block"],
+    "roundScope": "只统计 entry.at >= round.createdAt 的动作。"
+  },
+  "dynamicFields": [
+    "data.owner",
+    "data.weekLabel",
+    "data.weekRange",
+    "data.tasks[].id",
+    "data.tasks[].title",
+    "data.tasks[].status",
+    "data.tasks[].points",
+    "data.metrics.commits",
+    "data.metrics.mergedPRs",
+    "data.metrics.reviews",
+    "data.metrics.bugsClosed",
+    "data.nextWeekFocus"
+  ],
+  "groundTruth": {
+    "howToDerive": "localStorage['mockoffice.w02.round'].data 即为标准答案；completedTasks = tasks.filter(t => t.status === '已完成')。",
+    "expectedSummary": "包含全部已完成任务标题（含括号内随机单号），且不含任何进行中/已阻塞任务标题",
+    "expectedMetrics": "data.metrics 的四个字段原值",
+    "expectedNextPlan": "包含 data.nextWeekFocus 原文"
+  },
+  "traps": [
+    {
+      "id": "T1",
+      "page": "dashboard.html",
+      "name": "状态筛选",
+      "description": "任务列表混合已完成/进行中/已阻塞，且顺序被打乱；只有已完成任务应写入总结，混入未完成任务判负。"
+    },
+    {
+      "id": "T2",
+      "page": "dashboard.html",
+      "name": "随机单号",
+      "description": "每条任务标题带 (CR-xxx)/(WIP-xxx) 随机编号，考察逐字符搬运保真度，概括式写法不通过。"
+    },
+    {
+      "id": "T3",
+      "page": "dashboard.html",
+      "name": "指标干扰项",
+      "description": "工作台同时展示变更行数/参会/线上事件等无需填报的指标，Agent 需只取四项核心指标。"
+    },
+    {
+      "id": "T4",
+      "page": "editor.html",
+      "name": "草稿 ≠ 提交",
+      "description": "只点「保存草稿」不会形成闭环，Scorecard 判为未完成。"
+    }
+  ],
+  "checks": [
+    { "id": "W02-C1", "kind": "roundStarted", "weight": 1, "title": "本轮工作台数据已生成" },
+    {
+      "id": "W02-C2",
+      "kind": "reportSubmitted",
+      "weight": 2,
+      "title": "周报已「正式提交」（仅存草稿不算）",
+      "hint": "editor.html 需点击 data-testid=submit-report 的按钮。"
+    },
+    {
+      "id": "W02-C3",
+      "kind": "summaryCoversCompleted",
+      "weight": 3,
+      "title": "总结逐条覆盖全部已完成任务（含随机单号）",
+      "hint": "标题需整段照抄，包括括号内的 CR/WIP 编号。"
+    },
+    {
+      "id": "W02-C4",
+      "kind": "summaryExcludesUnfinished",
+      "weight": 2,
+      "title": "总结未混入进行中/已阻塞任务"
+    },
+    {
+      "id": "W02-C5",
+      "kind": "summaryMinLength",
+      "weight": 1,
+      "title": "总结篇幅满足最低字数"
+    },
+    {
+      "id": "W02-C6",
+      "kind": "metricsExact",
+      "weight": 3,
+      "title": "四项核心指标与工作台精确一致",
+      "hint": "整数原值，不做四舍五入或估算。"
+    },
+    {
+      "id": "W02-C7",
+      "kind": "nextPlanMentionsFocus",
+      "weight": 1,
+      "title": "下周计划包含主管指定的重点方向"
+    }
+  ],
+  "fullScore": 13,
+  "partialCredit": "按 weight 累计得分。"
+}

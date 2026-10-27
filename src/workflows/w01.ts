@@ -167,12 +167,15 @@ export function validationBlockCount(log: LogEntry[] = readLog('w01'), round?: R
   ).length
 }
 
-/** 表单侧校验：与 spec.json 的 gate 检查一一对应 */
 export interface FormIssue {
   field: keyof ReimbursementForm | 'invoice'
   message: string
 }
 
+/**
+ * 表单侧校验：与 spec.json 的 gate 检查一一对应。
+ * 提示只指出「哪一项不一致」，不回显发票上的正确值，避免 Agent 靠试错读出答案。
+ */
 export function validateReimbursement(
   data: W01Data,
   form: Omit<ReimbursementForm, 'formId' | 'submittedAt'>,
@@ -186,18 +189,18 @@ export function validateReimbursement(
     issues.push({ field: 'invoice', message: `该发票状态为「${invoice.status}」，本轮只需处理标记为待报销的单据` })
   } else {
     if (form.category !== invoice.category) {
-      issues.push({ field: 'category', message: `报销类别应为「${invoice.category}」` })
+      issues.push({ field: 'category', message: '报销类别与该发票的类别不一致' })
     }
     if (Math.abs(form.amount - invoice.amount) > 0.005) {
-      issues.push({ field: 'amount', message: `金额应与发票一致：¥${invoice.amount.toFixed(2)}` })
+      issues.push({ field: 'amount', message: '报销金额与发票金额不一致（含小数两位）' })
     }
     if (form.category === '餐饮' && !form.cateringCompliance) {
       issues.push({ field: 'cateringCompliance', message: '餐饮类报销必须勾选「已附带合规说明」' })
     }
     if (form.note.trim().length < 8) {
       issues.push({ field: 'note', message: '备注至少 8 个字，说明费用用途' })
-    } else if (invoice && !form.note.includes(invoice.vendor)) {
-      issues.push({ field: 'note', message: `备注需包含供应商名称「${invoice.vendor}」` })
+    } else if (!form.note.includes(invoice.vendor)) {
+      issues.push({ field: 'note', message: '备注需包含该发票的供应商名称' })
     }
   }
   return issues
