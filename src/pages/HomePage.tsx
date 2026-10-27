@@ -1,12 +1,13 @@
 import { clearAll, useLog, type WorkflowId } from '../lib/store'
 import { WORKFLOWS, hrefFromRoot } from '../lib/workflows'
 import { Badge, Panel } from '../components/ui'
+import { Scorecard } from './Scorecard'
 
 export function HomePage() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-5xl px-5 py-8">
+        <div className="mx-auto max-w-6xl px-5 py-8">
           <div className="flex items-center gap-2">
             <Badge tone="indigo">纯静态 · 零后端 · localStorage 状态机</Badge>
             <Badge tone="slate">React + Vite 多页</Badge>
@@ -21,7 +22,8 @@ export function HomePage() {
           </p>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl space-y-5 px-5 py-6">
+      <main className="mx-auto max-w-6xl space-y-5 px-5 py-6">
+        <Scorecard />
         <WorkflowNav />
         <Panel title="使用说明" testId="howto">
           <ol className="list-decimal space-y-1.5 pl-5 text-sm text-slate-600">

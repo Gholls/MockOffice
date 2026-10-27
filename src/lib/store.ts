@@ -15,8 +15,12 @@ export interface Round<T> {
   runId: string
   seed: number
   createdAt: string
+  /** 轮次数据结构版本：与当前代码不一致的旧数据会被丢弃并重开一轮 */
+  schema: number
   data: T
 }
+
+export const ROUND_SCHEMA = 2
 
 export interface LogEntry {
   at: string
@@ -102,10 +106,14 @@ function pad(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-/** 读取当前轮次；不存在时按 factory 新建并落盘。 */
+function isCurrentSchema<T>(round: Round<T> | null): round is Round<T> {
+  return !!round && round.schema === ROUND_SCHEMA && round.data != null
+}
+
+/** 读取当前轮次；不存在或结构版本过旧时按 factory 新建并落盘。 */
 export function ensureRound<T>(wf: WorkflowId, factory: (rng: Rng, seed: number) => T): Round<T> {
   const existing = readJson<Round<T> | null>(roundKey(wf), null)
-  if (existing && existing.data) return existing
+  if (isCurrentSchema(existing)) return existing
   return regenerateRound(wf, factory)
 }
 
@@ -119,6 +127,7 @@ export function regenerateRound<T>(
     runId: newRunId(wf.toUpperCase()),
     seed,
     createdAt: new Date().toISOString(),
+    schema: ROUND_SCHEMA,
     data: factory(new Rng(seed), seed),
   }
   writeJson(roundKey(wf), round)
@@ -126,7 +135,8 @@ export function regenerateRound<T>(
 }
 
 export function readRound<T>(wf: WorkflowId): Round<T> | null {
-  return readJson<Round<T> | null>(roundKey(wf), null)
+  const round = readJson<Round<T> | null>(roundKey(wf), null)
+  return isCurrentSchema(round) ? round : null
 }
 
 export function readLog(wf: WorkflowId): LogEntry[] {
@@ -136,13 +146,6 @@ export function readLog(wf: WorkflowId): LogEntry[] {
 /** 动作是否发生在指定轮次创建之后（重开轮次会作废上一轮进度） */
 export function withinRound(roundCreatedAt: string, actionAt: string): boolean {
   return Date.parse(actionAt) >= Date.parse(roundCreatedAt)
-}
-
-export function logEntriesInRound<T>(round: Round<unknown> | null, log: LogEntry[], action: string): T[] {
-  if (!round) return []
-  return log
-    .filter((entry) => entry.action === action && withinRound(round.createdAt, entry.at))
-    .map((entry) => entry.detail as unknown as T)
 }
 
 export function appendLog(wf: WorkflowId, action: string, detail: Record<string, unknown>): LogEntry[] {

@@ -21,7 +21,8 @@ export interface W03Data {
   catalog: AssetCategory[]
   maxQuantityPerOrder: number
   budgetCap: number
-  /** 期望交付日期需落在 [今天 + leadDays, 今天 + windowDays] 且为工作日 */
+  /** 期望交付日期需落在该闭区间且为工作日；随轮次冻结，避免跨天评测漂移 */
+  deliveryWindow: { min: string; max: string }
   leadDays: number
   windowDays: number
   minReasonChars: number
@@ -133,6 +134,7 @@ export function buildW03Round(rng: Rng): W03Data {
     budgetCap: 20000,
     leadDays: 1,
     windowDays: 14,
+    deliveryWindow: { min: isoDay(1), max: isoDay(14) },
     minReasonChars: 12,
   }
 }
@@ -190,7 +192,7 @@ export function remainingStock(data: W03Data, orders: AssetOrder[], modelId: str
 }
 
 export function deliveryBounds(data: W03Data): { min: string; max: string } {
-  return { min: isoDay(data.leadDays), max: isoDay(data.windowDays) }
+  return data.deliveryWindow
 }
 
 export function isWeekend(dateStr: string): boolean {
