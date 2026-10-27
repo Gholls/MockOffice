@@ -22,12 +22,15 @@ MockOffice/
 ├── index.html                     # 导航主页 + 全局 Scorecard
 ├── assets/styles.css              # Tailwind 入口（构建为 dist/assets/*.css）
 ├── workflow-01-reimbursement/     # 工作流 1：报销审批闭环
+│   ├── index.html                 # 目录落地页，自动进入 A 页
 │   ├── source.html  form.html  audit.html
 │   └── spec.json                  # 评测标准与 Ground Truth 定义
 ├── workflow-02-weekly-report/     # 工作流 2：周报汇总与提交
+│   ├── index.html
 │   ├── dashboard.html  editor.html
 │   └── spec.json
 ├── workflow-03-asset-apply/       # 工作流 3：行政资产领用
+│   ├── index.html
 │   ├── catalog.html  apply.html
 │   └── spec.json
 └── src/
@@ -145,6 +148,16 @@ npx wrangler pages deploy dist --project-name mockoffice
 - `spec.json` 会原样出现在 `dist/` 各流程目录下，外部 harness 可直接 `fetch('https://<project>.pages.dev/workflow-01-reimbursement/spec.json')`。
 - 状态存在浏览器侧的 `localStorage`，按域名隔离：正式域名与预览域名互不影响，评测时固定用同一个域名即可。
 - 全局广告干扰项在 Cloudflare 上会真实向 `pagead2.googlesyndication.com` 发起请求；因为没挂广告位，页面上不会出现可见内容。
+
+**可用的 URL 形式**
+
+| URL | 结果 |
+| --- | --- |
+| `/workflow-01-reimbursement` 或 `/workflow-01-reimbursement/` | 命中该目录的 `index.html`，自动跳到 A 页（发票池） |
+| `/workflow-01-reimbursement/source.html` | 直接访问 A 页 |
+| `/workflow-01-reimbursement/source` | Cloudflare Pages 的 pretty URL，等价于上一条 |
+
+**Pages 设置里请关闭 SPA 回退**（Build & deploy 里的 "Single Page Application" / 自定义 404 回退到 `index.html` 那类选项）。本项目是真正的多页站点，开启后任何拼错的路径都会返回 **200 + 根主页**，页面看起来"打开了"但内容完全不对——这正是"进不去流程、提交按钮一直置灰"的典型成因。关闭后错误路径会正常返回 404。
 
 ## 已知边界
 
