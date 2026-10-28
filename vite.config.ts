@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve } from 'node:path'
 import { PAGES } from './src/lib/site'
-import { headTags } from './src/lib/siteTags'
+import { headTags, skeletonHtml } from './src/lib/siteTags'
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.vite', 'assets', 'public'])
 
@@ -86,7 +86,10 @@ function siteMeta(): Plugin {
       const rel = relative(root, abs).replace(/\\/g, '/')
       const page = PAGES.find((item) => item.file === rel)
       if (!page) return html
-      return { html, tags: headTags(page) }
+      return {
+        html: html.replace('<div id="root">', `${skeletonHtml(page)}<div id="root">`),
+        tags: headTags(page),
+      }
     },
   }
 }

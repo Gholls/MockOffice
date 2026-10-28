@@ -135,4 +135,49 @@ export function redirectTargets(): Record<string, string> {
   return map
 }
 
+/**
+ * 静态骨架：注入到 #root 之前，React 首帧提交后由 boot.tsx 移除。
+ *
+ * 为什么需要：正文全部由 React 客户端渲染，不执行 JS 的抓取器与部分 LLM 读到的是空 body。
+ * 骨架让每个页面在无 JS 条件下也有完整的站点语义（标题、用途说明、可跟随的链接），
+ * 顺带把首次绘制提前到 JS 执行之前。
+ *
+ * 样式全部内联：骨架标记在构建期才生成，不出现在任何被 Tailwind 扫描的源文件里，
+ * 用 class 会被 purge 掉。
+ */
+export function skeletonHtml(page: PageMeta): string {
+  const dir = page.file.includes('/') ? page.file.slice(0, page.file.lastIndexOf('/') + 1) : ''
+  const homeHref = `${dir === '' ? '' : '../'}index.html`
+  const siblings = stepsOf(page.workflow)
+  const trail = [
+    `<a href="${homeHref}">MockOffice 主页</a>`,
+    ...(page.workflow
+      ? [
+          `<span aria-hidden="true">/</span> <a href="${siblings[0]?.file.slice(dir.length) ?? ''}">${
+            WORKFLOW_TITLES[page.workflow]
+          }</a>`,
+        ]
+      : []),
+    `<span aria-hidden="true">/</span> <span>${page.heading}</span>`,
+  ].join(' ')
+
+  const nav = siblings.length
+    ? `<nav aria-label="流程步骤"><ul>${siblings
+        .map(
+          (step) =>
+            `<li><a href="${step.file.slice(dir.length)}">${step.heading} —— ${step.intro[0]}</a></li>`,
+        )
+        .join('')}</ul></nav>`
+    : ''
+
+  return `<div id="static-skeleton" style="max-width:60rem;margin:0 auto;padding:2rem 1.25rem;color:#0f172a;font-family:ui-sans-serif,system-ui,'PingFang SC','Microsoft YaHei',sans-serif;line-height:1.6">
+<p style="margin:0;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:#4f46e5">MockOffice · Web Agent 浏览器自动化测试站</p>
+<h1 style="margin:.5rem 0 0;font-size:1.5rem;line-height:1.25">${page.heading}</h1>
+<p style="margin:.5rem 0 0;font-size:.8125rem;color:#64748b">${trail}</p>
+${page.intro.map((paragraph) => `<p style="margin:1rem 0 0">${paragraph}</p>`).join('\n')}
+${nav}
+</div>
+    `
+}
+
 export { WORKFLOW_ENTRY }
