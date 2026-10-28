@@ -28,7 +28,7 @@
         "compliance": "#compliance",
         "submit": "[data-testid=\"submit-form\"]"
       },
-      "validation": "字段不合规时提交按钮禁用；即使被程序化点击，提交处理函数仍会二次校验并写入 validation_block 而不是生成单据。"
+      "validation": "提交按钮始终可点击；字段不合规时点击提交会逐条显示错误并写入 validation_block，不会生成单据（同一函数二次校验，程序化点击同样被拦截）。"
     },
     {
       "file": "audit.html",
@@ -83,7 +83,7 @@
       "id": "T3",
       "page": "form.html",
       "name": "餐饮合规闸门",
-      "description": "类别为「餐饮」时必须勾选「已附带合规说明」，否则提交按钮置灰；未选餐饮时复选框禁用。"
+      "description": "类别为「餐饮」时必须勾选「已附带合规说明」，否则点击提交会报错且不生成单据；未选餐饮时复选框禁用。"
     },
     {
       "id": "T4",

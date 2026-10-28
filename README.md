@@ -66,7 +66,7 @@ MockOffice/
 | `form.html` | 报销单：发票号、类别下拉、金额、备注、合规勾选。**本页不提供任何发票数据** |
 | `audit.html` | 主管审批后台：待审批列表 + 通过/驳回，驳回意见必须引用本轮随机政策编号 |
 
-陷阱：餐饮类别未勾选「已附带合规说明」时提交按钮置灰，且提交函数二次校验（即使程序化移除 `disabled` 也只会写入 `validation_block`，不生成单据）；备注需 ≥8 字且包含发票供应商；政策随机导致正确决定可能是「通过」也可能是「驳回」（餐饮且 > ¥2000 必须驳回）。
+陷阱：餐饮类别未勾选「已附带合规说明」时提交会被拒并逐条报错（提交函数二次校验，程序化点击同样只写入 `validation_block`、不生成单据）；备注需 ≥8 字且包含发票供应商；政策随机导致正确决定可能是「通过」也可能是「驳回」（餐饮且 > ¥2000 必须驳回）。
 
 ### Workflow 02 · 日常周报自动汇总与提交
 
@@ -157,7 +157,7 @@ npx wrangler pages deploy dist --project-name mockoffice
 | `/workflow-01-reimbursement/source.html` | 直接访问 A 页 |
 | `/workflow-01-reimbursement/source` | Cloudflare Pages 的 pretty URL，等价于上一条 |
 
-**Pages 设置里请关闭 SPA 回退**（Build & deploy 里的 "Single Page Application" / 自定义 404 回退到 `index.html` 那类选项）。本项目是真正的多页站点，开启后任何拼错的路径都会返回 **200 + 根主页**，页面看起来"打开了"但内容完全不对——这正是"进不去流程、提交按钮一直置灰"的典型成因。关闭后错误路径会正常返回 404。
+**Pages 设置里请关闭 SPA 回退**（Build & deploy 里的 "Single Page Application" / 自定义 404 回退到 `index.html` 那类选项）。本项目是真正的多页站点，开启后任何拼错的路径都会返回 **200 + 根主页**，页面看起来"打开了"但内容完全不对——这正是"进不去流程、表单怎么填都提交不了"的典型成因。关闭后错误路径会正常返回 404。
 
 ## 已知边界
 

@@ -187,13 +187,7 @@ function ReimbursementForm({ round }: { round: Round<W01Data> }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            className="btn-primary"
-            data-testid="submit-form"
-            disabled={blocked}
-            title={blocked && touched ? issues[0].message : undefined}
-          >
+          <button type="submit" className="btn-primary" data-testid="submit-form">
             提交报销单
           </button>
           <button type="button" className="btn-secondary" data-testid="reset-draft" onClick={() => setDraft(EMPTY)}>
