@@ -1,0 +1,25 @@
+# MockOffice —— 本站的存在目的就是被 Agent 抓取与操作，因此对所有爬虫与 AI 抓取器全量放行。
+User-agent: *
+Allow: /
+
+# 搜索与 AI 抓取器显式放行
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: CCBot
+Allow: /
+User-agent: Amazonbot
+Allow: /
+
+Sitemap: https://mockoffice.gholl.com/sitemap.xml

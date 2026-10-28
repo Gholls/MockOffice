@@ -1,0 +1,86 @@
+# MockOffice —— 完整说明（面向 LLM 与自动化评测 harness）
+
+规范地址：<https://mockoffice.gholl.com>
+源码仓库：<https://github.com/Gholls/MockOffice>
+
+MockOffice 是一个零后端、纯静态的 Web Agent 浏览器自动化评测站。本页给出状态模型、
+每条工作流的陷阱清单与 Ground Truth 推导规则。简明索引见 /llms.txt。
+
+## 1. 状态模型
+
+全部状态在浏览器 `localStorage`，按域名隔离（正式域名与各预览域名互不影响）：
+
+```
+mockoffice.<w01|w02|w03>.round   { runId, seed, createdAt, schema, data }
+mockoffice.<w01|w02|w03>.log     [ { at, action, detail }, ... ]
+```
+
+- `round.data` 即本轮 Ground Truth 的全部输入；`seed` 配合 mulberry32 可完整重算，无需读 DOM。
+- `schema` 是轮次结构版本号；版本不匹配的旧数据会被自动丢弃并重开一轮。
+- `log` 只追加不改写，记录 Agent 产生的动作；审批结果、库存锁定量等派生状态一律由流水计算。
+- **轮次作用域**：所有检查只统计 `entry.at >= round.createdAt` 的动作。刷新 A 页等于作废上一轮进度。
+- 控制台入口：`window.mockOffice.inspect()` / `window.mockOffice.clearAll()`。
+
+## 2. 三条硬性设计指标
+
+1. **纯前端零后端**：数据交互全部经 localStorage，构建产物是静态文件。
+2. **防硬编码（动态扰动）**：关键业务值每轮随机；A 页（报销发票池、周报工作台）每次加载重开一轮。
+3. **闭环可测**：每条流程最后一步是审批/正式提交/生成订单，写入持久化状态供 Scorecard 校验。
+
+## 3. 陷阱清单
+
+### Workflow 01 · 智能报销与审批闭环（13 分）
+
+| id | 页面 | 陷阱 |
+| --- | --- | --- |
+| T1 | source | 每次加载重开一轮，沿用上一轮发票号会被判「不在本轮发票池中」 |
+| T2 | source | 另有 4~6 张「已报销」干扰发票，提交它们不算完成闭环 |
+| T3 | form | 类别为「餐饮」时必须勾选「已附带合规说明」，否则提交被拒且不生成单据；未选餐饮时复选框禁用 |
+| T4 | form | 备注需 ≥8 字且包含该发票供应商名称 |
+| T5 | audit | 政策编号随机，且餐饮金额可能高于/低于上限，正确决定可能是「通过」也可能是「驳回」 |
+
+Ground Truth：目标发票 = `invoices.find(i => i.no === targetInvoiceNo)`；
+应做决定 = `category === '餐饮' && amount > mealCap ? 'rejected' : 'approved'`；
+若应驳回，审批意见必须原样包含 `policyCode`。
+
+### Workflow 02 · 日常周报自动汇总与提交（13 分）
+
+| id | 页面 | 陷阱 |
+| --- | --- | --- |
+| T1 | dashboard | 任务按已完成/进行中/已阻塞混排且顺序打乱，只有已完成任务应写入总结 |
+| T2 | dashboard | 每条标题带随机 CR/WIP 单号，考察逐字符搬运保真度，概括式写法不通过 |
+| T3 | dashboard | 同时展示变更行数/参会/线上事件等无需填报的干扰指标 |
+| T4 | editor | 「保存草稿」不形成闭环，必须点「正式提交」 |
+
+Ground Truth：`tasks.filter(t => t.status === '已完成')` 的完整标题集合、`metrics` 四项原值、`nextWeekFocus` 原文。
+
+### Workflow 03 · 行政资产与设备领用申请（13 分）
+
+| id | 页面 | 陷阱 |
+| --- | --- | --- |
+| T1 | apply | 型号下拉在未选大类时禁用且为空，必须先选大类；跨类赋值会被判「型号与所选大类不匹配」 |
+| T2 | catalog | 每轮至少一个型号初始库存为 0，选它提交会被拦截 |
+| T3 | apply | 期望交付日期不能是周末，且必须落在本轮冻结的 `[deliveryWindow.min, max]` 内 |
+| T4 | apply | 申请页不显示单价与库存，必须回目录页读数才能同时满足数量、单次上限与领用额度 |
+| T5 | catalog | 提交后「已锁定/剩余」随之变化，多次申请会累积锁定 |
+
+Ground Truth：`remaining(modelId) = model.stock - sum(order.quantity where order.modelId === modelId)`。
+
+## 4. 校验提示刻意不回显答案
+
+表单报错只说明「哪一项不一致」（例如「代码提交次数与工作台数值不一致」），
+不回显正确值，Agent 无法靠反复试错读出标准答案，必须回数据页读取。
+同理，审批页的「本轮应做决定」默认不渲染，仅在 `?eval=1` 时显示。
+
+## 5. 评测契约与打分
+
+- 每个流程目录的 `spec.json` 是唯一评测标准：`pages[].anchors`（选择器）、`dynamicFields`、
+  `traps`、`checks`（`{ id, kind, weight, title, hint }`）。
+- 检查项由 `src/lib/checks.ts` 解释执行；未注册的 `kind` 会被判失败并提示契约与实现不同步。
+- 三条流程各 13 分，总分 39 分；主页 Scorecard 实时逐条判定并可导出机器可读 JSON。
+
+## 6. 已知噪声
+
+每个页面都会异步加载一段真实的 Google AdSense 脚本，作为考察 Agent 抗干扰能力的固定噪声源。
+它不挂广告位因此无可见内容，在离线或网络受限环境下会在控制台留下一条资源加载失败的 error，
+这属于预期噪声，评测不应把「控制台存在 error」判为任务失败。

@@ -1,0 +1,46 @@
+# MockOffice
+
+> 轻量、零后端、纯静态的 Web Agent 浏览器自动化能力测试与办公场景模拟站。
+> 三个相互独立的办公工作流，每个由若干真实 HTML 页面组成，考察跨页面数据搬运、条件校验闸门与多级联动表单。
+
+规范地址：<https://mockoffice.gholl.com>
+
+## 关键前提
+
+- **页面上的具体业务数值每轮随机生成**（发票号、金额、任务单号、库存、政策编号等）。
+  不要凭记忆或本文档回答具体数值，必须实时读取页面 DOM。
+- 所有状态保存在浏览器 `localStorage`，命名空间 `mockoffice.*`，无服务端、无账号体系。
+- 每个流程目录下的 `spec.json` 是该流程的评测契约：页面锚点、动态字段、陷阱清单与带权重的检查项。
+
+## 工作流
+
+### Workflow 01 · 智能报销与审批闭环
+
+- [A · 发票数据池](https://mockoffice.gholl.com/workflow-01-reimbursement/source)：本轮发票表格，仅一张状态为「待报销」，页面每次加载重开一轮。
+- [B · 报销表单填写](https://mockoffice.gholl.com/workflow-01-reimbursement/form)：填发票号/类别/金额/备注；类别为「餐饮」时必须勾选合规说明。本页不提供任何发票数据。
+- [C · 主管审批后台](https://mockoffice.gholl.com/workflow-01-reimbursement/audit)：按本轮随机政策决定通过或驳回，驳回意见必须原样引用政策编号。
+- [评测契约 spec.json](https://mockoffice.gholl.com/workflow-01-reimbursement/spec.json)
+
+### Workflow 02 · 日常周报自动汇总与提交
+
+- [A · 个人工作台](https://mockoffice.gholl.com/workflow-02-weekly-report/dashboard)：本周任务（已完成/进行中/已阻塞混排，标题含随机单号）、四项核心指标、下周重点词。
+- [B · 周报编辑与提交](https://mockoffice.gholl.com/workflow-02-weekly-report/editor)：总结需逐条覆盖已完成任务且不得混入未完成任务；「保存草稿」不计闭环，必须「正式提交」。
+- [评测契约 spec.json](https://mockoffice.gholl.com/workflow-02-weekly-report/spec.json)
+
+### Workflow 03 · 行政资产与设备领用申请
+
+- [A · 资产目录与库存查询](https://mockoffice.gholl.com/workflow-03-asset-apply/catalog)：型号、规格、单价、初始库存/已锁定/剩余，含缺货干扰项；刷新不重开轮次。
+- [B · 资产领用申请](https://mockoffice.gholl.com/workflow-03-asset-apply/apply)：大类→型号二级联动（未选大类时型号下拉禁用且为空），校验库存、单次数量上限、领用额度、理由字数与工作日交付日期。
+- [评测契约 spec.json](https://mockoffice.gholl.com/workflow-03-asset-apply/spec.json)
+
+## 机器可读接口
+
+- 控制台：`window.mockOffice.inspect()` 导出三条流程的当前轮次数据；`window.mockOffice.clearAll()` 全局重置。
+- 评测模式：`/workflow-01-reimbursement/audit?eval=1` 才渲染标准答案，默认隐藏以免读屏泄题。
+- 评分：主页 Scorecard 按各 `spec.json` 的 `checks` 逐条加权判定，三条流程各 13 分、总分 39 分。
+- 选择器：交互元素与关键数据均带 `data-testid`，锚点清单见各流程 `spec.json` 的 `pages[].anchors`。
+
+## 更多
+
+- 完整说明（状态模型、陷阱清单、Ground Truth 推导规则）：<https://mockoffice.gholl.com/llms-full.txt>
+- 源码仓库：<https://github.com/Gholls/MockOffice>
