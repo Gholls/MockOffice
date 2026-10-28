@@ -29,8 +29,10 @@ export interface LogEntry {
 }
 
 const listeners = new Set<() => void>()
+let version = 0
 
 function emit() {
+  version += 1
   for (const listener of Array.from(listeners)) listener()
 }
 
@@ -195,5 +197,17 @@ export function useSnapshot<T>(key: string, fallback: T): T {
     subscribe,
     () => readJson<T>(key, fallback),
     () => readJson<T>(key, fallback),
+  )
+}
+
+/**
+ * localStorage 版本号：任何写入都会让它 +1。
+ * 派生数据（进度、评分）用 useMemo([tick]) 重算，避免每个组件各自维护订阅状态。
+ */
+export function useStoreTick(): number {
+  return useSyncExternalStore(
+    subscribe,
+    () => version,
+    () => version,
   )
 }
