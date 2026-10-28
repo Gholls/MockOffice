@@ -1,0 +1,12 @@
+# Cloudflare Pages：带内容哈希的构建产物可以永久缓存。
+#
+# 为什么需要：Pages 默认对**所有**响应（包括 /assets/ui-xxxx.js 这类哈希文件）发送
+# `cache-control: public, max-age=0, must-revalidate`，于是 Agent 每翻一页都要为这 72 kB
+# 的共享包做一次条件请求。改成 immutable 后，同一轮评测里后续页面只需下载约 2–3 kB 的页面 chunk。
+#
+# 注意 _headers 的多条规则是「叠加继承」，后面的规则不会覆盖前面的，
+# 因此这里只写一条精确匹配 /assets/* 的规则，不去写会与之冲突的 `/*` 兜底规则；
+# HTML 保持 Pages 默认的 must-revalidate，这样每次部署后新产物能立刻生效。
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
